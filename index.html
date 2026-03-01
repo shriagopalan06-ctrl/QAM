@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QAM Virtual Lab</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2236;
+    --border: #1e3a5f;
+    --accent: #00d4ff;
+    --accent2: #00ff88;
+    --accent3: #ff6b35;
+    --text: #e2e8f0;
+    --text-muted: #64748b;
+    --grid: rgba(0,212,255,0.08);
+    --axis: rgba(0,212,255,0.4);
+    --canvas-bg: #080c18;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 15px;
+    min-height: 100vh;
+  }
+
+  header {
+    background: linear-gradient(135deg, #0d1b2e 0%, #111827 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(0,212,255,0.4);
+  }
+
+  header span {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+  }
+
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    gap: 4px;
+  }
+
+  .tab-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 14px 20px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-panel { display: none; padding: 28px 32px; }
+  .tab-panel.active { display: block; }
+
+  /* ---- SIMULATION LAYOUT ---- */
+  .sim-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  .controls-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .control-group label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .control-group select,
+  .control-group input[type="range"],
+  .control-group input[type="number"] {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    border-radius: 4px;
+    padding: 7px 10px;
+    outline: none;
+  }
+
+  .control-group select:focus,
+  .control-group input:focus {
+    border-color: var(--accent);
+  }
+
+  .value-display {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--accent2);
+    text-align: right;
+    margin-top: 3px;
+  }
+
+  .btn {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+  }
+  .btn-primary:hover { background: #00b8d9; box-shadow: 0 0 15px rgba(0,212,255,0.3); }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-full { width: 100%; }
+
+  /* ---- CANVASES ---- */
+  .canvases-area {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .canvas-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .canvas-header {
+    background: var(--surface2);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .canvas-header h3 {
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .canvas-header .ch-toggles {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .ch-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .ch-toggle-label.ch1 { color: #00ff88; }
+  .ch-toggle-label.ch2 { color: #00eaff; }
+
+  canvas {
+    display: block;
+    background: var(--canvas-bg);
+  }
+
+  /* ---- STATS ---- */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  .stat-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    text-align: center;
+  }
+
+  .stat-card .stat-label {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+
+  .stat-card .stat-value {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 16px;
+    color: var(--accent2);
+  }
+
+  /* ---- CH1 CONTROLS ---- */
+  .ch1-controls {
+    background: rgba(0,255,136,0.04);
+    border: 1px solid rgba(0,255,136,0.2);
+    border-radius: 6px;
+    padding: 12px;
+  }
+
+  .ch1-controls .ch1-title {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent2);
+    margin-bottom: 10px;
+  }
+
+  .ch1-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+
+  .ch1-row label { font-size: 10px; color: var(--text-muted); display: block; margin-bottom: 3px; }
+  .ch1-row input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid rgba(0,255,136,0.3);
+    color: var(--accent2);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    border-radius: 3px;
+    padding: 5px 7px;
+    outline: none;
+  }
+
+  /* ---- QUIZ ---- */
+  .quiz-container { max-width: 720px; margin: 0 auto; }
+
+  .quiz-question {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .quiz-question h3 {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  .question-text {
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 14px;
+    color: var(--text);
+  }
+
+  .option-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    margin-bottom: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .option-label:hover { border-color: var(--accent); }
+  .option-label.selected { border-color: var(--accent); background: rgba(0,212,255,0.06); }
+  .option-label.correct { border-color: var(--accent2); background: rgba(0,255,136,0.08); }
+  .option-label.incorrect { border-color: var(--accent3); background: rgba(255,107,53,0.08); }
+
+  .option-label input { accent-color: var(--accent); }
+
+  .quiz-actions { display: flex; gap: 12px; margin-top: 20px; }
+
+  .quiz-results {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border);
+  }
+
+  .score-display { display: flex; align-items: baseline; gap: 16px; margin: 12px 0; }
+  .score-number { font-family: 'Share Tech Mono', monospace; font-size: 40px; color: var(--accent); }
+  .score-percentage { font-family: 'Share Tech Mono', monospace; font-size: 24px; color: var(--accent2); }
+
+  .answer-item {
+    padding: 14px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .answer-correct { background: rgba(0,255,136,0.06); border: 1px solid rgba(0,255,136,0.25); }
+  .answer-incorrect { background: rgba(255,107,53,0.06); border: 1px solid rgba(255,107,53,0.25); }
+
+  /* ---- TIME/DIV DISPLAY ---- */
+  .cro-footer {
+    padding: 8px 16px;
+    display: flex;
+    gap: 24px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+  }
+
+  .cro-footer span { color: var(--text); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>QAM VIRTUAL LAB</h1>
+  <span>QUADRATURE AMPLITUDE MODULATION</span>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="simulation">Simulation</button>
+  <button class="tab-btn" data-tab="waveform">Waveform / CRO</button>
+  <button class="tab-btn" data-tab="quiz">Quiz</button>
+</div>
+
+<!-- ============================================================ -->
+<!-- SIMULATION TAB -->
+<!-- ============================================================ -->
+<div class="tab-panel active" data-content="simulation">
+  <div class="sim-layout">
+
+    <div class="controls-panel">
+      <div class="control-group">
+        <label>Modulation</label>
+        <select data-param="modulation">
+          <option value="qpsk">QPSK (4)</option>
+          <option value="16-qam" selected>16-QAM</option>
+          <option value="64-qam">64-QAM</option>
+          <option value="256-qam">256-QAM</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label>SNR (dB)</label>
+        <input type="range" data-param="snr" min="0" max="30" value="15" step="0.5">
+        <div class="value-display" data-display="snr-value">15 dB</div>
+      </div>
+
+      <div class="control-group">
+        <label>Amplitude</label>
+        <input type="range" data-param="amplitude" min="0.5" max="3" value="1" step="0.05">
+        <div class="value-display" data-display="amplitude-value">1.00</div>
+      </div>
+
+      <button class="btn btn-primary btn-full" onclick="SimulationEngine.drawSimulation()">▶ RUN SIMULATION</button>
+    </div>
+
+    <div class="canvases-area">
+      <div class="canvas-card">
+        <div class="canvas-header">
+          <h3>Constellation Diagram</h3>
+        </div>
+        <canvas data-canvas="constellation" width="540" height="400"></canvas>
+      </div>
+
+      <div class="stats-row" data-display="simulation-stats">
+        <div class="stat-card"><div class="stat-label">Avg Power</div><div class="stat-value">—</div></div>
+        <div class="stat-card"><div class="stat-label">Symbol Rate</div><div class="stat-value">—</div></div>
+        <div class="stat-card"><div class="stat-label">Data Rate</div><div class="stat-value">—</div></div>
+        <div class="stat-card"><div class="stat-label">BER (est)</div><div class="stat-value">—</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- WAVEFORM / CRO TAB -->
+<!-- ============================================================ -->
+<div class="tab-panel" data-content="waveform">
+  <div class="sim-layout">
+
+    <div class="controls-panel">
+      <div class="control-group">
+        <label>Modulation</label>
+        <select id="croModulation">
+          <option value="qpsk">QPSK (4)</option>
+          <option value="16-qam" selected>16-QAM</option>
+          <option value="64-qam">64-QAM</option>
+          <option value="256-qam">256-QAM</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label>Carrier Frequency (Hz)</label>
+        <input type="number" id="carrierFreq" value="100" min="10" max="1000">
+      </div>
+
+      <div class="control-group">
+        <label>Symbol Rate (sym/s)</label>
+        <input type="number" id="symbolRate" value="10" min="1" max="100">
+      </div>
+
+      <div class="control-group">
+        <label>Num Symbols</label>
+        <input type="number" id="numSymbols" value="8" min="2" max="64">
+      </div>
+
+      <div class="ch1-controls">
+        <div class="ch1-title">CH1 — Reference Input</div>
+        <div class="ch1-row">
+          <div>
+            <label>Freq (Hz)</label>
+            <input type="number" id="ch1Freq" value="100" min="1">
+          </div>
+          <div>
+            <label>Amplitude</label>
+            <input type="number" id="ch1Amp" value="1" step="0.1" min="0.1">
+          </div>
+          <div>
+            <label>Phase (°)</label>
+            <input type="number" id="ch1Phase" value="0" min="-360" max="360">
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-full" id="runCroBtn" onclick="runCRO()">▶ GENERATE WAVEFORMS</button>
+    </div>
+
+    <div class="canvases-area">
+      <div class="canvas-card">
+        <div class="canvas-header">
+          <h3>Oscilloscope — CH1 Input &amp; CH2 QAM Output</h3>
+          <div class="ch-toggles">
+            <label class="ch-toggle-label ch1">
+              <input type="checkbox" id="ch1Toggle" checked> CH1 IN
+            </label>
+            <label class="ch-toggle-label ch2">
+              <input type="checkbox" id="ch2Toggle" checked> CH2 QAM OUT
+            </label>
+          </div>
+        </div>
+        <canvas id="waveformCanvas" width="700" height="360"></canvas>
+        <div class="cro-footer">
+          Time/Div: <span id="timePerDiv">—</span>
+          &nbsp;&nbsp;|&nbsp;&nbsp;
+          CH1 Freq: <span id="ch1FreqDisplay">—</span>
+          &nbsp;&nbsp;|&nbsp;&nbsp;
+          Symbols: <span id="symbolCountDisplay">—</span>
+        </div>
+      </div>
+
+      <div class="canvas-card">
+        <div class="canvas-header">
+          <h3>I/Q Baseband Components</h3>
+        </div>
+        <canvas id="iqCanvas" width="700" height="180"></canvas>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- QUIZ TAB -->
+<!-- ============================================================ -->
+<div class="tab-panel" data-content="quiz">
+  <!-- rendered by JS -->
+</div>
+
+
+<script>
+// ============================================================================
+// THEME
+// ============================================================================
+const THEME = {
+  canvasBg: '#080c18',
+  grid: 'rgba(0,212,255,0.07)',
+  axis: 'rgba(0,212,255,0.45)',
+  axisText: '#64748b',
+  noisyPoint: 'rgba(0,212,255,0.6)',
+  idealPoint: '#00ff88'
+};
+
+// ============================================================================
+// APP STATE
+// ============================================================================
+const appState = {
+  activeTab: 'simulation',
+  simulationParams: {
+    modulation: '16-qam',
+    snrDb: 15,
+    amplitude: 1.0
+  },
+  quizAnswers: {},
+  quizScore: null
+};
+
+// ============================================================================
+// TAB NAVIGATION
+// ============================================================================
+const TabNavigation = {
+  init() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelector(`[data-content="${tab}"]`).classList.add('active');
+        appState.activeTab = tab;
+      });
+    });
+  }
+};
+
+// ============================================================================
+// SIMULATION ENGINE — CONSTELLATION
+// ============================================================================
+const SimulationEngine = {
+  canvas: null,
+  ctx: null,
+  constellationData: [],
+
+  initializeSimulation() {
+    this.canvas = document.querySelector('canvas[data-canvas="constellation"]');
+    if (!this.canvas) return;
+    this.ctx = this.canvas.getContext('2d');
+    this.setupEventListeners();
+    this.drawSimulation();
+  },
+
+  setupEventListeners() {
+    const modulationSelect = document.querySelector('select[data-param="modulation"]');
+    const snrSlider = document.querySelector('input[data-param="snr"]');
+    const amplitudeSlider = document.querySelector('input[data-param="amplitude"]');
+
+    if (modulationSelect) {
+      modulationSelect.addEventListener('change', e => {
+        appState.simulationParams.modulation = e.target.value;
+        this.drawSimulation();
+      });
+    }
+    if (snrSlider) {
+      snrSlider.addEventListener('input', e => {
+        const v = parseFloat(e.target.value);
+        appState.simulationParams.snrDb = v;
+        document.querySelector('[data-display="snr-value"]').textContent = `${v} dB`;
+        this.drawSimulation();
+      });
+    }
+    if (amplitudeSlider) {
+      amplitudeSlider.addEventListener('input', e => {
+        const v = parseFloat(e.target.value);
+        appState.simulationParams.amplitude = v;
+        document.querySelector('[data-display="amplitude-value"]').textContent = v.toFixed(2);
+        this.drawSimulation();
+      });
+    }
+  },
+
+  gaussianRandom() {
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+  },
+
+  generateConstellation() {
+    const { modulation, amplitude, snrDb } = appState.simulationParams;
+    const points = [];
+    const symbolMap = { 'qpsk': 4, '16-qam': 16, '32-qam': 32, '64-qam': 64, '128-qam': 128, '256-qam': 256 };
+    const symbols = symbolMap[modulation] || 16;
+    const gridSize = Math.sqrt(symbols);
+    const noiseStd = Math.sqrt(1 / (2 * Math.pow(10, snrDb / 10)));
+
+    for (let i = 0; i < gridSize; i++) {
+      for (let j = 0; j < gridSize; j++) {
+        const iComp = ((2 * i + 1 - gridSize) / gridSize) * amplitude;
+        const qComp = ((2 * j + 1 - gridSize) / gridSize) * amplitude;
+        for (let n = 0; n < 5; n++) {
+          points.push({
+            i: iComp + this.gaussianRandom() * noiseStd,
+            q: qComp + this.gaussianRandom() * noiseStd,
+            ideal_i: iComp,
+            ideal_q: qComp
+          });
+        }
+      }
+    }
+    return points;
+  },
+
+  drawSimulation() {
+    if (!this.canvas || !this.ctx) return;
+    this.constellationData = this.generateConstellation();
+    this.drawConstellation();
+    this.updateSimulationStats();
+  },
+
+  drawConstellation() {
+    const { canvas, ctx } = this;
+    const W = canvas.width, H = canvas.height;
+    const cx = W / 2, cy = H / 2;
+    const scale = 60;
+
+    ctx.fillStyle = THEME.canvasBg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Grid
+    ctx.strokeStyle = THEME.grid;
+    ctx.lineWidth = 1;
+    for (let i = -4; i <= 4; i++) {
+      ctx.beginPath(); ctx.moveTo(cx + i * scale, 0); ctx.lineTo(cx + i * scale, H); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, cy + i * scale); ctx.lineTo(W, cy + i * scale); ctx.stroke();
+    }
+
+    // Axes
+    ctx.strokeStyle = THEME.axis;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(W, cy); ctx.stroke();
+
+    // Labels
+    ctx.fillStyle = THEME.axisText;
+    ctx.font = '13px Rajdhani, Arial';
+    ctx.textAlign = 'right'; ctx.fillText('I (In-phase)', W - 8, cy - 8);
+    ctx.textAlign = 'left'; ctx.fillText('Q (Quadrature)', cx + 8, 18);
+
+    // Noisy points
+    this.constellationData.forEach(pt => {
+      const x = cx + pt.i * scale, y = cy - pt.q * scale;
+      ctx.fillStyle = THEME.noisyPoint;
+      ctx.beginPath(); ctx.arc(x, y, 2, 0, 2 * Math.PI); ctx.fill();
+    });
+
+    // Ideal points
+    const { modulation, amplitude } = appState.simulationParams;
+    const symbolMap = { 'qpsk': 4, '16-qam': 16, '64-qam': 64, '256-qam': 256 };
+    const symbols = symbolMap[modulation] || 16;
+    const gridSize = Math.sqrt(symbols);
+
+    ctx.strokeStyle = THEME.idealPoint;
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < gridSize; i++) {
+      for (let j = 0; j < gridSize; j++) {
+        const iComp = ((2 * i + 1 - gridSize) / gridSize) * amplitude;
+        const qComp = ((2 * j + 1 - gridSize) / gridSize) * amplitude;
+        const x = cx + iComp * scale, y = cy - qComp * scale;
+        ctx.beginPath(); ctx.arc(x, y, 5, 0, 2 * Math.PI); ctx.stroke();
+      }
+    }
+  },
+
+  updateSimulationStats() {
+    const stats = this.calculateStats();
+    const container = document.querySelector('[data-display="simulation-stats"]');
+    if (!container) return;
+    container.innerHTML = `
+      <div class="stat-card"><div class="stat-label">Avg Power</div><div class="stat-value">${stats.avgPower.toFixed(3)} W</div></div>
+      <div class="stat-card"><div class="stat-label">Symbol Rate</div><div class="stat-value">${stats.symbolRate} sym/s</div></div>
+      <div class="stat-card"><div class="stat-label">Data Rate</div><div class="stat-value">${stats.dataRate} Mbps</div></div>
+      <div class="stat-card"><div class="stat-label">BER (est)</div><div class="stat-value">${stats.ber.toExponential(2)}</div></div>
+    `;
+  },
+
+  calculateStats() {
+    const { modulation, snrDb } = appState.simulationParams;
+    const bpsMap = { 'qpsk': 2, '16-qam': 4, '64-qam': 6, '256-qam': 8 };
+    const bitsPerSymbol = bpsMap[modulation] || 4;
+    const symbolRate = 1000;
+    const dataRate = (symbolRate * bitsPerSymbol) / 1e6;
+    const snrLinear = Math.pow(10, snrDb / 10);
+    const ber = erfc(Math.sqrt(snrLinear / 2)) / 2;
+
+    let totalPower = 0;
+    this.constellationData.forEach(pt => { totalPower += pt.i * pt.i + pt.q * pt.q; });
+    const avgPower = totalPower / (this.constellationData.length || 1);
+
+    return { avgPower, symbolRate, dataRate, ber };
+  }
+};
+
+// erfc polyfill
+function erfc(x) {
+  const t = 1 / (1 + 0.3275911 * Math.abs(x));
+  const poly = t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
+  const res = poly * Math.exp(-x * x);
+  return x >= 0 ? res : 2 - res;
+}
+
+// ============================================================================
+// CRO ENGINE
+// ============================================================================
+
+// Stored globally so channel toggle can redraw without re-generating
+let _ch1Data = null;
+let _ch2Data = null;
+let _iqData = null;
+
+function getModulationGrid(mod) {
+  const m = { 'qpsk': 2, '16-qam': 4, '64-qam': 8, '256-qam': 16 };
+  return m[mod] || 4;
+}
+
+function generateQAMSymbols(mod, numSymbols) {
+  const gridSize = getModulationGrid(mod);
+  const levels = [];
+  for (let i = 0; i < gridSize; i++) levels.push((2 * i + 1 - gridSize) / gridSize);
+
+  const I = [], Q = [];
+  for (let n = 0; n < numSymbols; n++) {
+    I.push(levels[Math.floor(Math.random() * gridSize)]);
+    Q.push(levels[Math.floor(Math.random() * gridSize)]);
+  }
+  return { I, Q };
+}
+
+function generateTimeAxis(fs, duration) {
+  const N = Math.floor(fs * duration);
+  const t = new Float64Array(N);
+  for (let i = 0; i < N; i++) t[i] = i / fs;
+  return t;
+}
+
+function upsampleSymbols(symbols, sps) {
+  const out = new Float64Array(symbols.length * sps);
+  for (let s = 0; s < symbols.length; s++)
+    for (let i = 0; i < sps; i++) out[s * sps + i] = symbols[s];
+  return out;
+}
+
+function generateQAMWave(I, Q, carrierFreq, symbolRate) {
+  const fs = Math.max(20 * carrierFreq, 1000);
+  const sps = Math.max(1, Math.floor(fs / symbolRate));
+  const duration = I.length / symbolRate;
+  const t = generateTimeAxis(fs, duration);
+  const Iw = upsampleSymbols(I, sps);
+  const Qw = upsampleSymbols(Q, sps);
+  const N = t.length;
+  const signal = new Float64Array(N);
+  const TWO_PI_FC = 2 * Math.PI * carrierFreq;
+  for (let i = 0; i < N; i++) {
+    signal[i] = Iw[i] * Math.cos(TWO_PI_FC * t[i]) - Qw[i] * Math.sin(TWO_PI_FC * t[i]);
+  }
+  return { t, signal, sps, I: Iw, Q: Qw };
+}
+
+function generateCH1Wave(freq, amp, phase, duration) {
+  const fs = Math.max(20 * freq, 1000);
+  const t = generateTimeAxis(fs, duration);
+  const phRad = phase * Math.PI / 180;
+  const signal = new Float64Array(t.length);
+  const TWO_PI_F = 2 * Math.PI * freq;
+  for (let i = 0; i < t.length; i++) signal[i] = amp * Math.cos(TWO_PI_F * t[i] + phRad);
+  return { t, signal };
+}
+
+function downsampleForDraw(signal, maxPts) {
+  if (signal.length <= maxPts) return signal;
+  const step = signal.length / maxPts;
+  const out = new Float64Array(maxPts);
+  for (let i = 0; i < maxPts; i++) out[i] = signal[Math.floor(i * step)];
+  return out;
+}
+
+function runCRO() {
+  const mod = document.getElementById('croModulation').value;
+  const carrierFreq = parseFloat(document.getElementById('carrierFreq').value) || 100;
+  const symbolRate = parseFloat(document.getElementById('symbolRate').value) || 10;
+  const numSymbols = parseInt(document.getElementById('numSymbols').value) || 8;
+  const ch1Freq = parseFloat(document.getElementById('ch1Freq').value) || carrierFreq;
+  const ch1Amp = parseFloat(document.getElementById('ch1Amp').value) || 1;
+  const ch1Phase = parseFloat(document.getElementById('ch1Phase').value) || 0;
+
+  const { I, Q } = generateQAMSymbols(mod, numSymbols);
+  const duration = numSymbols / symbolRate;
+
+  _ch2Data = generateQAMWave(I, Q, carrierFreq, symbolRate);
+  _ch1Data = generateCH1Wave(ch1Freq, ch1Amp, ch1Phase, duration);
+  _iqData = { I, Q, symbolRate };
+
+  drawCRO();
+  drawIQ();
+  autoScaleView(symbolRate, ch1Freq, numSymbols);
+
+  // Re-draw when toggles change
+  document.getElementById('ch1Toggle').onchange = drawCRO;
+  document.getElementById('ch2Toggle').onchange = drawCRO;
+}
+
+function drawCRO() {
+  const canvas = document.getElementById('waveformCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  ctx.fillStyle = THEME.canvasBg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(0,212,255,0.07)';
+  ctx.lineWidth = 1;
+  const cols = 10, rows = 8;
+  for (let i = 1; i < cols; i++) {
+    ctx.beginPath(); ctx.moveTo(i * W / cols, 0); ctx.lineTo(i * W / cols, H); ctx.stroke();
+  }
+  for (let i = 1; i < rows; i++) {
+    ctx.beginPath(); ctx.moveTo(0, i * H / rows); ctx.lineTo(W, i * H / rows); ctx.stroke();
+  }
+
+  // Horizontal center lines
+  ctx.strokeStyle = 'rgba(0,212,255,0.18)';
+  const mid1 = H * 0.25, mid2 = H * 0.75;
+  ctx.beginPath(); ctx.moveTo(0, mid1); ctx.lineTo(W, mid1); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, mid2); ctx.lineTo(W, mid2); ctx.stroke();
+
+  // Labels
+  ctx.font = '11px Share Tech Mono, monospace';
+  ctx.fillStyle = '#00ff88';
+  ctx.textAlign = 'left';
+  ctx.fillText('CH1 — INPUT', 8, 14);
+  ctx.fillStyle = '#00eaff';
+  ctx.fillText('CH2 — QAM OUTPUT', 8, H / 2 + 14);
+
+  function drawSignal(signal, color, midY, halfH) {
+    const pts = downsampleForDraw(signal, W);
+    const maxVal = pts.reduce((m, v) => Math.max(m, Math.abs(v)), 0.001);
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < pts.length; i++) {
+      const x = (i / pts.length) * W;
+      const y = midY - (pts[i] / maxVal) * halfH * 0.85;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  const ch1On = document.getElementById('ch1Toggle')?.checked;
+  const ch2On = document.getElementById('ch2Toggle')?.checked;
+
+  if (ch1On && _ch1Data) drawSignal(_ch1Data.signal, '#00ff88', H * 0.25, H * 0.22);
+  if (ch2On && _ch2Data) drawSignal(_ch2Data.signal, '#00eaff', H * 0.75, H * 0.22);
+}
+
+function drawIQ() {
+  const canvas = document.getElementById('iqCanvas');
+  if (!canvas || !_iqData) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  ctx.fillStyle = THEME.canvasBg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(0,212,255,0.07)';
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 8; i++) {
+    ctx.beginPath(); ctx.moveTo(i * W / 8, 0); ctx.lineTo(i * W / 8, H); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
+
+  const { I, Q } = _iqData;
+  const maxVal = Math.max(...I.map(Math.abs), ...Q.map(Math.abs), 0.001);
+
+  function drawBaseband(symbols, color, label) {
+    const sps = Math.floor(W / symbols.length);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    let prevX = 0, prevY = H / 2 - (symbols[0] / maxVal) * (H * 0.42);
+    ctx.moveTo(prevX, prevY);
+    for (let i = 0; i < symbols.length; i++) {
+      const x1 = i * (W / symbols.length);
+      const x2 = (i + 1) * (W / symbols.length);
+      const y = H / 2 - (symbols[i] / maxVal) * (H * 0.42);
+      ctx.lineTo(x1, y);
+      ctx.lineTo(x2, y);
+    }
+    ctx.stroke();
+
+    ctx.fillStyle = color;
+    ctx.font = '11px Share Tech Mono, monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(label, 8, color === '#00ff88' ? 14 : H - 6);
+  }
+
+  drawBaseband(I, '#00ff88', 'I (In-phase)');
+  drawBaseband(Q, '#00eaff', 'Q (Quadrature)');
+}
+
+function autoScaleView(symbolRate, ch1Freq, numSymbols) {
+  const timePerDiv = (numSymbols / symbolRate) / 10;
+  const ms = timePerDiv * 1000;
+  document.getElementById('timePerDiv').textContent = ms < 1
+    ? (timePerDiv * 1e6).toFixed(1) + ' μs/div'
+    : ms.toFixed(2) + ' ms/div';
+  document.getElementById('ch1FreqDisplay').textContent = ch1Freq + ' Hz';
+  document.getElementById('symbolCountDisplay').textContent = numSymbols;
+}
+
+// ============================================================================
+// QUIZ SYSTEM
+// ============================================================================
+const QuizSystem = {
+  questions: [
+    { id:1, question:'What does QAM stand for?',
+      options:['Quadrature Amplitude Modulation','Quantum Amplitude Measurement','Quick Analog Modulation','Quadratic Amplitude Module'],
+      correct:0, explanation:'QAM stands for Quadrature Amplitude Modulation, a technique using two carriers 90° apart.' },
+    { id:2, question:'How many symbols are in 16-QAM?',
+      options:['8','16','32','64'], correct:1,
+      explanation:'16-QAM has 16 distinct symbols arranged in a 4×4 constellation.' },
+    { id:3, question:'What is the primary advantage of QAM?',
+      options:['Lower cost','Higher spectral efficiency','Simpler implementation','Better coverage'],
+      correct:1, explanation:'QAM provides higher spectral efficiency by encoding multiple bits per symbol.' },
+    { id:4, question:'In QAM, what do I and Q represent?',
+      options:['Input and Quality','In-phase and Quadrature','Impedance and Quantum','Integer and Quantum'],
+      correct:1, explanation:'I (In-phase) and Q (Quadrature) are two orthogonal carriers 90° apart.' },
+    { id:5, question:'How many bits does 64-QAM encode per symbol?',
+      options:['4','6','8','10'], correct:1,
+      explanation:'64-QAM encodes 6 bits per symbol (2^6 = 64 symbols).' },
+    { id:6, question:'What effect does increased SNR have on QAM performance?',
+      options:['Decreased data rate','Improved symbol detection accuracy','Reduced modulation depth','Increased constellation size'],
+      correct:1, explanation:'Higher SNR improves accuracy in distinguishing between symbols.' },
+    { id:7, question:'Which has the highest spectral efficiency?',
+      options:['BPSK','16-QAM','256-QAM','FSK'], correct:2,
+      explanation:'256-QAM encodes 8 bits per symbol, the highest here.' },
+    { id:8, question:'Main drawback of 256-QAM?',
+      options:['Higher complexity','Greater sensitivity to noise','Lower data rates','Increased bandwidth'],
+      correct:1, explanation:'Higher-order QAM requires lower error rates and is more sensitive to channel impairments.' }
+  ],
+
+  renderQuiz() {
+    const container = document.querySelector('[data-content="quiz"]');
+    if (!container) return;
+
+    let html = '<div class="quiz-container">';
+    if (appState.quizScore !== null) html += this.renderResults();
+
+    this.questions.forEach((q, idx) => {
+      html += `<div class="quiz-question" data-question-id="${q.id}">
+        <h3>Question ${idx + 1} of ${this.questions.length}</h3>
+        <p class="question-text">${q.question}</p>
+        <div class="question-options">`;
+      q.options.forEach((opt, oi) => {
+        const sel = appState.quizAnswers[q.id] === oi;
+        html += `<label class="option-label ${sel ? 'selected' : ''}">
+          <input type="radio" name="q${q.id}" value="${oi}" ${sel ? 'checked' : ''}
+            onchange="QuizSystem.selectAnswer(${q.id}, ${oi})">
+          <span>${opt}</span></label>`;
+      });
+      html += `</div></div>`;
+    });
+
+    html += `<div class="quiz-actions">
+      <button class="btn btn-primary" onclick="QuizSystem.submitQuiz()">Submit Quiz</button>
+      <button class="btn btn-secondary" onclick="QuizSystem.resetQuiz()">Reset</button>
+    </div></div>`;
+
+    container.innerHTML = html;
+  },
+
+  selectAnswer(qId, oi) { appState.quizAnswers[qId] = oi; },
+
+  submitQuiz() {
+    if (Object.keys(appState.quizAnswers).length !== this.questions.length) {
+      alert('Please answer all questions before submitting.'); return;
+    }
+    let correct = 0;
+    this.questions.forEach(q => { if (appState.quizAnswers[q.id] === q.correct) correct++; });
+    appState.quizScore = { correct, total: this.questions.length, percentage: Math.round(correct / this.questions.length * 100) };
+    this.renderQuiz();
+  },
+
+  resetQuiz() { appState.quizAnswers = {}; appState.quizScore = null; this.renderQuiz(); },
+
+  renderResults() {
+    const { correct, total, percentage } = appState.quizScore;
+    const msg = percentage >= 80 ? 'Excellent! Strong understanding of QAM.'
+      : percentage >= 60 ? 'Good! Review explanations for missed questions.'
+      : percentage >= 40 ? 'Fair. Study concepts more carefully.'
+      : 'Keep practicing! Review fundamental QAM concepts.';
+
+    let html = `<div class="quiz-results">
+      <h2 style="letter-spacing:2px;color:var(--accent)">QUIZ RESULTS</h2>
+      <div class="score-display">
+        <div class="score-number">${correct}/${total}</div>
+        <div class="score-percentage">${percentage}%</div>
+      </div>
+      <p style="color:var(--text-muted);margin-bottom:16px">${msg}</p>
+      <div class="answer-review">`;
+
+    this.questions.forEach((q, idx) => {
+      const ua = appState.quizAnswers[q.id];
+      const ok = ua === q.correct;
+      html += `<div class="answer-item ${ok ? 'answer-correct' : 'answer-incorrect'}">
+        <h4 style="margin-bottom:6px">Q${idx+1}: ${q.question}</h4>
+        <p><strong>Your answer:</strong> ${q.options[ua]}</p>
+        ${!ok ? `<p><strong>Correct:</strong> ${q.options[q.correct]}</p>` : ''}
+        <p style="color:var(--text-muted)"><strong>Explanation:</strong> ${q.explanation}</p>
+      </div>`;
+    });
+
+    html += '</div></div>';
+    return html;
+  }
+};
+
+// ============================================================================
+// INIT
+// ============================================================================
+document.addEventListener('DOMContentLoaded', () => {
+  TabNavigation.init();
+  SimulationEngine.initializeSimulation();
+  QuizSystem.renderQuiz();
+  // Auto-run CRO once so canvas isn't blank
+  runCRO();
+});
+</script>
+</body>
+</html>
