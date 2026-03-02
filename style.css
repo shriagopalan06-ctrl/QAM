@@ -37,12 +37,21 @@ html, body {
   font-size: 15px;
   line-height: 1.6;
 }
+/* ============================================================
+   MAIN WEBSITE WIDTH CONTROL
+   ============================================================ */
 
+.main-container {
+  width: 100%;
+  max-width: 1600px;     /* increase overall site width */
+  margin: 0 auto;        /* center horizontally */
+  padding: 0 20px;       /* small side padding */
+}
 /* ============================================================
    HERO HEADER — matches the big bordered card at top
    ============================================================ */
 .hero-header {
-  margin: 22px 32px 0;
+  margin: 22px 0 0;
   background: linear-gradient(160deg, #0a1830 0%, #081428 60%, #060e20 100%);
   border: 1.5px solid var(--border-bright);
   border-radius: var(--card-radius);
@@ -99,7 +108,7 @@ html, body {
   display: flex;
   justify-content: center;
   gap: 8px;
-  padding: 20px 32px 0;
+  padding: 20px 0 0;
   flex-wrap: wrap;
 }
 
@@ -134,7 +143,7 @@ html, body {
    CONTENT AREA
    ============================================================ */
 .content-area {
-  padding: 24px 32px 60px;
+  padding: 24px 0 60px;
 }
 
 .tab-panel { display: none; }
@@ -219,7 +228,7 @@ html, body {
    ============================================================ */
 .sim-layout {
   display: grid;
-  grid-template-columns: 270px 1fr;
+  grid-template-columns: 300px 1fr;
   gap: 20px;
   align-items: start;
 }
@@ -254,7 +263,6 @@ html, body {
 }
 
 .control-group select,
-.control-group input[type="range"],
 .control-group input[type="number"],
 .control-group input[type="text"] {
   width: 100%;
@@ -268,13 +276,25 @@ html, body {
   outline: none;
   transition: border-color 0.2s;
 }
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
 
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+
+  background: rgba(255,255,255,0.05);
+  border: none;
+}
 .control-group select:focus,
 .control-group input:focus { border-color: var(--accent); }
 
 .control-group input[type="range"] {
   padding: 4px 0;
-  accent-color: var(--accent);
+
   cursor: pointer;
 }
 
@@ -770,4 +790,68 @@ canvas {
   .tab-nav { gap: 5px; }
   .tab-btn { padding: 8px 14px; font-size: 11px; }
   .content-area { padding: 16px; }
+}
+
+.lab-footer {
+  margin-top: 80px;
+  padding: 40px 20px;
+  background: linear-gradient(to top, #07142b, #0a1f3c);
+  text-align: center;
+  border-top: 1px solid var(--border);
+}
+
+.footer-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+
+.footer-text h2 {
+  color: var(--accent);
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.footer-text p {
+  color: var(--text-muted);
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+.footer-text hr {
+  width: 60%;
+  margin: 15px auto;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+.lab-footer {
+  margin-top: 80px;
+  padding: 40px 20px;
+  background: linear-gradient(to top, #07142b, #0a1f3c);
+  text-align: center;
+  border-top: 1px solid var(--border);
+}
+
+.footer-content {
+  text-align: center;
+}
+
+.lab-footer h2 {
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+.lab-footer p {
+  color: var(--text-muted);
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+.lab-footer hr {
+  width: 60%;
+  margin: 15px auto;
+  border: 0;
+  border-top: 1px solid var(--border);
 }
