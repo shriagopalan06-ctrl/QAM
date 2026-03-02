@@ -32,7 +32,7 @@ const appState = {
   postTestScore: null,
   resultsLog: []
 };
-
+let simulationStarted = false;
 // ============================================================
 // TAB NAVIGATION
 // ============================================================
@@ -51,9 +51,7 @@ const TabNavigation = {
         // Lazy init simulation canvas when tab becomes visible
         if (tab === 'simulation') {
           SimulationEngine.initializeSimulation();
-        }
-        if (tab === 'waveform') {
-          runCRO();
+       
         }
       });
     });
@@ -83,11 +81,14 @@ const SimulationEngine = {
     this.canvas = document.querySelector('canvas[data-canvas="constellation"]');
     if (!this.canvas) return;
     this.ctx = this.canvas.getContext('2d');
+    // Clear canvas initially (blank screen)
+this.ctx.fillStyle = THEME.canvasBg;
+this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     if (!this.initialized) {
       this.setupEventListeners();
       this.initialized = true;
     }
-    this.drawSimulation();
+    
   },
 
   setupEventListeners() {
@@ -97,7 +98,9 @@ const SimulationEngine = {
 
     if (modSel) modSel.addEventListener('change', e => {
       appState.simulationParams.modulation = e.target.value;
-      this.drawSimulation();
+      if (simulationStarted) {
+  this.drawSimulation();
+}
     });
 
     if (snrSl) snrSl.addEventListener('input', e => {
@@ -105,7 +108,9 @@ const SimulationEngine = {
       appState.simulationParams.snrDb = v;
       const disp = document.querySelector('[data-display="snr-value"]');
       if (disp) disp.textContent = `${v} dB`;
-      this.drawSimulation();
+      if (simulationStarted) {
+  this.drawSimulation();
+}
     });
 
     if (ampSl) ampSl.addEventListener('input', e => {
@@ -113,7 +118,9 @@ const SimulationEngine = {
       appState.simulationParams.amplitude = v;
       const disp = document.querySelector('[data-display="amplitude-value"]');
       if (disp) disp.textContent = v.toFixed(2);
-      this.drawSimulation();
+     if (simulationStarted) {
+  this.drawSimulation();
+}
     });
   },
 
@@ -257,6 +264,13 @@ const SimulationEngine = {
 // ============================================================
 // CRO ENGINE — Waveform Oscilloscope
 // ============================================================
+let croView = {
+  start: 0,      // 0 → 1 (normalized)
+  end: 1,
+  selecting: false,
+  selStartPx: 0,
+  selEndPx: 0
+};
 
 let _ch1Data = null;
 let _ch2Data = null;
@@ -322,20 +336,40 @@ function downsample(signal, maxPts) {
   for (let i = 0; i < maxPts; i++) out[i] = signal[Math.floor(i * step)];
   return out;
 }
-
+// ===============================
+// CRO VIEW STATE (ADD THIS ONCE)
+// ===============================
 function runCRO() {
+  if (!_ch1Data || !_ch2Data || !_iqData) {
+  generateCROData();   // create fresh data
+}
   const mod        = (document.getElementById('croModulation')?.value)   || '16-qam';
   const fc         = parseFloat(document.getElementById('carrierFreq')?.value)  || 100;
   const symbolRate = parseFloat(document.getElementById('symbolRate')?.value)   || 10;
+  // --- Enforce Nyquist condition: fc >= 5 * symbolRate ---
+let adjustedSymbolRate = symbolRate;
+
+const maxAllowedSymbolRate = Math.floor(fc / 5);
+
+if (symbolRate > maxAllowedSymbolRate) {
+    adjustedSymbolRate = maxAllowedSymbolRate;
+
+    // Update slider visually
+    const symbolSlider = document.getElementById('symbolRate');
+    const symbolVal = document.getElementById('symbolRateVal');
+
+    if (symbolSlider) symbolSlider.value = adjustedSymbolRate;
+    if (symbolVal) symbolVal.textContent = adjustedSymbolRate;
+}
   const numSymbols = parseInt(document.getElementById('numSymbols')?.value)     || 8;
   const ch1Freq    = parseFloat(document.getElementById('ch1Freq')?.value)      || fc;
   const ch1Amp     = parseFloat(document.getElementById('ch1Amp')?.value)       || 1;
   const ch1Phase   = parseFloat(document.getElementById('ch1Phase')?.value)     || 0;
 
   const { I, Q } = generateQAMSymbols(mod, numSymbols);
-  const duration  = numSymbols / symbolRate;
+  const duration = numSymbols / adjustedSymbolRate;
 
-  _ch2Data = generateQAMWave(I, Q, fc, symbolRate);
+  ch2Data = generateQAMWave(I, Q, fc, adjustedSymbolRate);
   _ch1Data = generateCH1Wave(ch1Freq, ch1Amp, ch1Phase, duration);
   _iqData  = { I, Q };
 
@@ -353,6 +387,40 @@ function drawCRO() {
   const canvas = document.getElementById('waveformCanvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
+  if (!canvas._zoomInit) {
+
+  canvas.addEventListener("mousedown", e => {
+    croView.selecting = true;
+    croView.selStartPx = e.offsetX;
+  });
+
+  canvas.addEventListener("mousemove", e => {
+    if (!croView.selecting) return;
+    croView.selEndPx = e.offsetX;
+    drawCRO();
+  });
+
+  canvas.addEventListener("mouseup", e => {
+
+    croView.selecting = false;
+    croView.selEndPx = e.offsetX;
+
+    const minPx = Math.min(croView.selStartPx, croView.selEndPx);
+    const maxPx = Math.max(croView.selStartPx, croView.selEndPx);
+
+    const range = croView.end - croView.start;
+
+    const newStart = croView.start + (minPx / canvas.width) * range;
+    const newEnd   = croView.start + (maxPx / canvas.width) * range;
+
+    croView.start = Math.max(0, newStart);
+    croView.end   = Math.min(1, newEnd);
+
+    drawCRO();
+  });
+
+  canvas._zoomInit = true;
+}
   const W = canvas.width, H = canvas.height;
 
   ctx.fillStyle = THEME.canvasBg;
@@ -382,31 +450,69 @@ function drawCRO() {
   ctx.fillText('CH1 — INPUT', 10, 16);
   ctx.fillStyle = '#00eaff';
   ctx.fillText('CH2 — QAM OUTPUT', 10, H / 2 + 16);
+const drawSig = (signal, color, midY, halfH) => {
 
-  const drawSig = (signal, color, midY, halfH) => {
-    const pts    = downsample(signal, W);
-    const maxVal = pts.reduce((m, v) => Math.max(m, Math.abs(v)), 0.001);
-    ctx.beginPath();
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
-    for (let i = 0; i < pts.length; i++) {
-      const x = (i / pts.length) * W;
-      const y = midY - (pts[i] / maxVal) * halfH * 0.82;
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-  };
+  const totalSamples = signal.length;
+
+  // Zoom window
+  const startIndex = Math.floor(totalSamples * croView.start);
+  const endIndex   = Math.floor(totalSamples * croView.end);
+
+  const visibleLength = Math.max(1, endIndex - startIndex);
+
+  // DO NOT downsample full signal
+  // Downsample only visible window
+  const step = Math.max(1, Math.floor(visibleLength / W));
+
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+
+  let maxVal = 0;
+
+  // First pass: compute max for scaling
+  for (let i = startIndex; i < endIndex; i += step) {
+    maxVal = Math.max(maxVal, Math.abs(signal[i]));
+  }
+  maxVal = Math.max(maxVal, 0.001);
+
+  let xIndex = 0;
+
+  for (let i = startIndex; i < endIndex; i += step) {
+
+    const x = (xIndex / (visibleLength / step)) * W;
+    const y = midY - (signal[i] / maxVal) * halfH * 0.82;
+
+    if (xIndex === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+
+    xIndex++;
+  }
+
+  ctx.stroke();
+};
 
   const ch1On = document.getElementById('ch1Toggle')?.checked !== false;
   const ch2On = document.getElementById('ch2Toggle')?.checked !== false;
   if (ch1On && _ch1Data) drawSig(_ch1Data.signal, '#00ff88', H * 0.25, H * 0.22);
   if (ch2On && _ch2Data) drawSig(_ch2Data.signal, '#00eaff', H * 0.75, H * 0.22);
+  // ===========================
+// DRAW SELECTION BOX HERE
+// ===========================
+if (croView.selecting) {
+  ctx.fillStyle = "rgba(0,255,255,0.12)";
+  const x = Math.min(croView.selStartPx, croView.selEndPx);
+  const w = Math.abs(croView.selEndPx - croView.selStartPx);
+  ctx.fillRect(x, 0, w, H);
+}
+
 }
 
 function drawIQ() {
   const canvas = document.getElementById('iqCanvas');
   if (!canvas || !_iqData) return;
   const ctx = canvas.getContext('2d');
+  
   const W = canvas.width, H = canvas.height;
 
   ctx.fillStyle = THEME.canvasBg;
@@ -667,8 +773,28 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Run simulation immediately if sim panel is visible
-  const simPanel = document.querySelector('[data-content="simulation"]');
-  if (simPanel && simPanel.classList.contains('active')) {
-    SimulationEngine.initializeSimulation();
+// ============================================================
+// MASTER RUN FUNCTION (STEP 4)
+// ============================================================
+function runFullSimulation() {
+
+  simulationStarted = true;
+
+  // 1️⃣ Constellation
+  SimulationEngine.drawSimulation();
+
+  // 2️⃣ CRO
+  if (typeof runCRO === "function") {
+    runCRO();
   }
+
+  // 3️⃣ Eye
+  if (typeof drawEyeDiagram === "function") {
+    drawEyeDiagram();
+  }
+
+}
+
 });
+// UNIVERSAL RANGE SLIDER FILL FIX
+// ============================================
